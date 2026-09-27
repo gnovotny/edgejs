@@ -122,6 +122,39 @@ branch.
 
 ## Proposed Solution References
 
+### Child stdio collisions in libuv WASIX
+
+An extra child pipe can disappear when its target descriptor has the same
+number as a parent-only pipe end. For example, the WASIX spawn actions install
+`dup2(65, 64)` and then close the old parent descriptor `64`, closing the newly
+installed child channel. The child observes `EBADF` even though spawn succeeds.
+
+The action plan is to move parent-only closes before target installation in
+libuv's WASIX spawn implementation, add a deterministic libuv regression, and
+advance Edge's libuv gitlink. The dependency repair is
+[libuv PR #17](https://github.com/wasix-org/libuv/pull/17).
+The Edge regression reserves parent descriptors
+through 64, releases 64, then spawns a child with a pipe at that same target. It
+asserts the collision actually occurred and checks the child's exact bytes.
+
+Descriptors 3–5 remain reserved WASIX preopens. This repair does not permit
+overwriting them or change Edge's JavaScript child-process API.
+
+Run the standalone regression with a native Node-compatible executable:
+
+```sh
+node tests/js/wasix-stdio-parent-close.js
+```
+
+For WASIX, mount this checkout at `/workspace` and run the same script with the
+built Edge package. Record that run separately from the native control; native
+libuv uses a different spawn implementation.
+
+The native Node control passes. In Chrome with Wasmer SDK 0.18.0 and published
+Edge.js 0.1.24, the exact regression exits 1: child `fs.writeSync(64, ...)`
+throws `EBADF`. Patched WASIX validation is pending; the dependency update
+remains a draft until that run passes.
+
 ### [wasmerio/edgejs#91: [WIP] Node tests using Edgejs WASIX QuickJS](https://github.com/wasmerio/edgejs/pull/91)
 
 - Sadhbh: edgejs [f1999f45](https://github.com/wasmerio/edgejs/commit/f1999f45d43453d508db45b3b52e4115983e26a8) Removed hacks: loopback, and spawn
