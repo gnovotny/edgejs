@@ -152,8 +152,17 @@ libuv uses a different spawn implementation.
 
 The native Node control passes. In Chrome with Wasmer SDK 0.18.0 and published
 Edge.js 0.1.24, the exact regression exits 1: child `fs.writeSync(64, ...)`
-throws `EBADF`. Patched WASIX validation is pending; the dependency update
-remains a draft until that run passes.
+throws `EBADF`. The patched build passes the same Chrome fixture with exit 0
+and `WASIX_STDIO_PARENT_CLOSE_OK`. A same-source build with only the libuv patch
+reversed reproduces the failure, isolating the close-order fix. Both builds use
+the same browser test packaging, omitting the manifest's registry Bash dependency;
+the harness loads its independently pinned shell when requested.
+
+Strict receipt checks also pass nine duplex channels at 10–18 and eight active
+directional channels at 16–24 and 64–72, including 50 occupied parent descriptors.
+They check exact bytes, PID equality, the omitted channel and a synchronous read
+blocking about 504 ms. The 3–11 layout still refuses with `ENOTSUP`. This
+establishes the focused behavior; it is not a full Edge test-suite result.
 
 ### [wasmerio/edgejs#91: [WIP] Node tests using Edgejs WASIX QuickJS](https://github.com/wasmerio/edgejs/pull/91)
 
